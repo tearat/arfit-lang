@@ -3,27 +3,44 @@ require 'colorize'
 class Processor
     def initialize(events)
         @events = events
+        @completed_events = []
         @vars = {}
     end
 
-    def raise_error type, message, n, line
+    def raise_error type, messages, n, code
         puts ""
         puts "Arfit processor raises an exception: #{type}".red
-        puts "Message: #{message}".red
-        puts "At line #{n}:".red
+        messages.each do |message|
+            puts "> #{message}".red
+        end
         puts ""
-        puts "#{line}"
+        puts "line #{n}: #{code}"
         puts ""
     end
 
-
-    def is_int? var_name
-        return @vars[var_name][:value] == @vars[var_name][:value].to_i.to_s.to_i
+    def var_type? var
+        if var.is_a? Integer
+            return "int"
+        end
+        if var.is_a? String
+            return "string"
+        end
+        return "undefined"
     end
 
+    # def can_set_value_to_variable? value, variable
+    #     puts self.var_type?(value)
+    #     puts variable[:var_type]
+    #     return self.var_type?(value) == variable[:var_type]
+    # end
 
-    def is_str? var_name
-        return @vars[var_name][:value] != @vars[var_name][:value].to_i.to_s
+
+    def find_last_declaration var
+        @completed_events.each do |event|
+            if event[:event] == "declaration" && event[:var] == var
+                return event
+            end
+        end
     end
 
 
@@ -31,12 +48,22 @@ class Processor
         n = 0
         @events.each do |event|
             n += 1
+            event[:line] = n
+            # p event
             if event[:error]
-                self.raise_error event[:error_type], event[:error_message], n, event[:line]
+                self.raise_error event[:error_type], event[:error_message], n, event[:code]
                 return
             end
 
             if event[:event] == "declaration"
+                if @vars.has_key? event[:var]
+                    declaration_event = find_last_declaration(event[:var])
+                    self.raise_error "DeclarationError::declaration", [
+                        "Variable already declared at line #{declaration_event[:line]}:",
+                        "#{declaration_event[:code]}"
+                        ], n, event[:code]
+                    return
+                end
                 new_var = {
                     :var_type => event[:var_type],
                     :value => event[:value],
@@ -45,16 +72,41 @@ class Processor
                 @vars[var_name] = new_var
             end
 
+            if event[:event] == "setting"
+                if event[:var_type] != @vars[event[:var]][:var_type]
+                    self.raise_error "SettingError::setting", ["Variable type is not correct"], n, event[:code]
+                    return
+                else
+                    if event[:var_type] == "string"
+                        @vars[event[:var]][:value] = event[:value]
+                    else
+                        @vars[event[:var]][:value] = event[:value].to_i
+                    end
+                end
+            end
+
             if event[:event] == "increment"
                 if !@vars.has_key? event[:var]
-                    self.raise_error "VariableError", "Variable not declared", n, event[:line]
+                    self.raise_error "SettingError::increment", ["Variable not declared"], n, event[:code]
                     return
                 end
-                if !self.is_int? event[:var]
-                    self.raise_error "VariableError", "Variable type is not Integer", n, event[:line]
+                if @vars[event[:var]][:var_type] != "int"
+                    self.raise_error "SettingError::increment", ["Variable type is not Integer"], n, event[:code]
                     return
                 end
                 @vars[event[:var]][:value] += 1
+            end
+
+            if event[:event] == "decrement"
+                if !@vars.has_key? event[:var]
+                    self.raise_error "SettingError::decrement", ["Variable not declared"], n, event[:code]
+                    return
+                end
+                if @vars[event[:var]][:var_type] != "int"
+                    self.raise_error "SettingError::decrement", ["Variable type is not Integer"], n, event[:code]
+                    return
+                end
+                @vars[event[:var]][:value] -= 1
             end
 
             if event[:event] == "print"
@@ -63,7 +115,7 @@ class Processor
                 end
                 if event[:arg_type] == "var"
                     if !@vars.has_key? event[:arg]
-                        self.raise_error "VariableError", "Variable not declared", n, event[:line]
+                        self.raise_error "OutputError::print", ["Variable not declared"], n, event[:code]
                         return
                     else
                         puts @vars[event[:arg]][:value]
@@ -71,6 +123,9 @@ class Processor
                 end
             end
             # p @vars
+            # puts ""
+            @completed_events.push event
+            # p @completed_events
         end
     end
 end

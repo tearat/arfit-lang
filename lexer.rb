@@ -23,13 +23,19 @@ class Lexer
             line.gsub! "\n", ""
             line.strip!
             # if line != ""
+            event = parse_line line
+            # puts event[:event]
             if @log
-                puts ""
-                puts line.green
-                puts parse_line line
+                if event[:event] != "comment" && event[:event] != "blank"
+                    puts ""
+                    puts line.green
+                    puts parse_line line
+                end
             end
-            events.push parse_line line
-            # end
+
+            if event[:event] != "comment" && event[:event] != "blank"
+                events.push event
+            end
         end
         return events
     end
@@ -45,17 +51,28 @@ class Lexer
     end
 
 
+    def var_type? value
+        if value.is_a? Integer
+            return "int"
+        end
+        if value.is_a? String
+            return "string"
+        end
+        return "undefined"
+    end
+
+
     def parse_line line
         rest = line
         options = {}
-        options[:line] = line
+        options[:code] = line
 
         if line == ""
             options[:event] = "blank"
             return options
         end
 
-        if line =~ /\/\/.+/
+        if line =~ /\/\/.+?/
             options[:event] = "comment"
             options[:value] = line.match(/\/\/(.+)/)[1].strip
             return options
@@ -65,8 +82,8 @@ class Lexer
             options[:event] = "declaration"
             matches = line.match(/(int|string).+(\S).+?=.+?(\S+)/)
             options[:var_type] = matches[1]
-            options[:var] = matches[2]
-            options[:value] = matches[3]
+            options[:var]      = matches[2]
+            options[:value]    = matches[3]
 
             if options[:var_type] == "int"
                 if !is_int?(options[:value])
@@ -78,15 +95,17 @@ class Lexer
             end
 
             if options[:var_type] == "string"
+                # TODO: catch wrong notation with double " etc
                 if options[:value] =~ /\"(.+)\"/
-                    options[:value] = options[:value].match(/\"(.+)\"/)[1]
+                    matches = options[:value].match(/\"(.+)\"/)
+                    options[:value] = matches[1]
                 else
                     options[:error] = true
                     options[:error_type] = "TypeError"
-                    options[:error_message] = "Type error. Expected String"
+                    options[:error_message] = "Type error. Wrong string format"
                 end
 
-                if !is_str?(options[:value])
+                if self.var_type?(options[:value]) != "string"
                     options[:error] = true
                     options[:error_type] = "TypeError"
                     options[:error_message] = "Type error. Expected String"
@@ -95,9 +114,34 @@ class Lexer
             return options
         end
 
-        if line =~ /\+\+/
+        if line =~ /\S(.+?)=(.+?)(\S+)/
+            options[:event] = "setting"
+            matches = line.match(/(\S).+?=.+?(\S+)/)
+            options[:var] = matches[1]
+            options[:value] = matches[2]
+
+            if is_int? options[:value]
+                options[:var_type] = "int"
+            elsif is_str? options[:value]
+                if options[:value] =~ /\"(.+)\"/
+                    options[:var_type] = "string"
+                    options[:value] = options[:value].match(/\"(.+)\"/)[1]
+                end
+            end
+            return options
+        end
+
+        if line =~ /(\S+).+?\+\+/
             options[:event] = "increment"
-            options[:var] = line.split("++")[0]
+            options[:var] = line.match(/(\S+).+?\+\+/)[1]
+            # options[:var] = line.split("++")[0]
+            return options
+        end
+
+        if line =~ /(\S+).+?\-\-/
+            options[:event] = "decrement"
+            options[:var] = line.match(/(\S+).+?\-\-/)[1]
+            # options[:var] = line.split("--")[0]
             return options
         end
 
@@ -113,5 +157,8 @@ class Lexer
             end
             return options
         end
+
+        options[:event] = "blank"
+        return options
     end
 end

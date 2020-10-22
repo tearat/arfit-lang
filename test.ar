@@ -1,7 +1,12 @@
-int a = 1
-a++
-print a
+// this is comment
 
-string b = "hekko"
+  int a = 1
+a ++
+a   =  3
+a--
+ print   a
+
+string   b  = "hello"
+b = "12"
 print b
-b++
+print "world"
