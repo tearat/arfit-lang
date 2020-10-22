@@ -3,6 +3,11 @@
   int a = 1
 a ++
 a   =  3
+//
+//
+//
+//
+int a = "test"
 a--
  print   a
 

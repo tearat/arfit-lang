@@ -51,7 +51,7 @@ class Processor
             event[:line] = n
             # p event
             if event[:error]
-                self.raise_error event[:error_type], event[:error_message], n, event[:code]
+                self.raise_error event[:error_type], [event[:error_message]], n, event[:code]
                 return
             end
 

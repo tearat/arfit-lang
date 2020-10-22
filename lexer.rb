@@ -33,9 +33,9 @@ class Lexer
                 end
             end
 
-            if event[:event] != "comment" && event[:event] != "blank"
+            # if event[:event] != "comment" && event[:event] != "blank"
                 events.push event
-            end
+            # end
         end
         return events
     end
