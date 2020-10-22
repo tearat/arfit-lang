@@ -7,18 +7,12 @@ require_relative "lexer"
 require_relative "processor"
 
 
-# cities = YAML.load(File.read("cities.yml"))
-
-# options = {}
-# OptionParser.new do |opts|
-#     opts.banner = "Usage: parser.rb [options]"
-#     opts.on("-h", "--help", "Показать это сообщение") { puts opts }
-#     opts.on("-ls", "--list", "--cities", "Показать все доступные города") { options[:list] = true }
-#     opts.on("-c CITY", "--city=CITY", "Город для поиска (по умолчанию: spb, Санкт-Петербург)") { |city| options[:city] = city }
-#     opts.on("-t TEXT", "--text=TEXT", "Текст для поискового запроса") { |text| options[:text] = text }
-#     opts.on("-p PAGE", "--page=PAGE", "Страница (по умолчанию: 1)") { |page| options[:page] = page }
-#     opts.on("-a", "--all", "Парсить все города по всем запросам") { options[:all] = true }
-# end.parse!
+options = {}
+OptionParser.new do |opts|
+    opts.banner = "Usage: parser.rb [options]"
+    opts.on("-h", "--help", "Показать это сообщение") { puts opts }
+    opts.on("-d", "--debug", "Debug mode") { options[:debug] = true }
+end.parse!
 
 filename = ARGV[0]
 
@@ -29,7 +23,9 @@ code.each do |line|
 end
 
 lexer = Lexer.new code_array
-lexer.log!
+if options.has_key? :debug
+    lexer.log!
+end
 events = lexer.lex
 
 processor = Processor.new events
